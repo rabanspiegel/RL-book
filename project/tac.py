@@ -1,4 +1,3 @@
-
 # create transisition function
 
 from dataclasses import dataclass
