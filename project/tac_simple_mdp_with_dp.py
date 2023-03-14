@@ -34,6 +34,7 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
         'Two': 2,
         'Three': 3,
         'Five': 5
+        'Six': 6,
     }
     fields = 20
 
