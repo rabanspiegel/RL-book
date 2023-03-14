@@ -48,10 +48,9 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
             -> Tuple[TacState, float]:
 
         positions = state.position.copy()
-        cards_per_player = len(state.cards_on_hand[0])
 
         # simulate action of player 0
-        played_card = action # state.cards_on_hand[0][action]
+        played_card = action
         if played_card in self.card_effects:
             positions[0] = (positions[0] + self.card_effects[played_card]) % self.fields
 
@@ -66,8 +65,9 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
             for p in range(1, self.players):
                 if positions[p] == (step * p - 1) % self.fields:
                     return True
+            return False
 
-        reward = 1 if positions[0] == 19 else -1 if game_lost() else 0
+        reward = 1 if positions[0] == self.fields - 1 else -1 if game_lost() else 0
 
         return TacState(positions, cards), reward
 
@@ -141,5 +141,5 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 if __name__ == '__main__':
     tac_mp = SimpleTacGame()
 
-    vf, pi = value_iteration_result(tac_mp, 0.99)
+    vf, pi = value_iteration_result(tac_mp, gamma=0.99)
     print(pi)

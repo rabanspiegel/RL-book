@@ -9,7 +9,7 @@ A = TypeVar('A')
 class TacGame(MarkovDecisionProcess[TacState]):
 
     def actions(self, state: NonTerminal[TacState]) -> Iterable[A]:
-        pass
+        return state.cards_on_hand[0]
 
     def step(self, state: NonTerminal[TacState], action: A) -> NonTerminal[TacState]:
         pass
