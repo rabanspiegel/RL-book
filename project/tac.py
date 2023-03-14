@@ -1,4 +1,4 @@
-# create transisition function
+# create transition function
 
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Sequence, Tuple
@@ -11,8 +11,7 @@ from rl.markov_process import FiniteMarkovProcess, FiniteMarkovRewardProcess
 @dataclass(frozen=True)
 class TacState:
     position: Tuple[int, int]  # positions of player 1 and player 2
-    # cards on hand of player 1 and player 2
-    cards_on_hand: Sequence[Tuple[int, int]]
+    cards_on_hand: Sequence[Tuple[int, int]] # cards on hand of player 1 and player 2
 
 
 def possible_cards_on_hand() -> Sequence[Tuple[int, int]]:
