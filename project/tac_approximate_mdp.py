@@ -17,7 +17,8 @@ A = TypeVar('A')
 
 @dataclass(frozen=True)
 class TacState:
-    position: np.ndarray  # normalized positions of player 1 and player 2
+    # normalized positions of player 1 and player 2
+    position: Tuple[float, float]
     cards_on_hand: np.ndarray  # one-hot encoded cards on hand of player 1 and player 2
 
     def __hash__(self):
@@ -39,7 +40,8 @@ class TacState:
     def from_original_representation(
         cls, position: List[int], cards_on_hand: List[List[str]], num_fields: int, unique_cards: List[str]
     ) -> "TacState":
-        normalized_positions = cls.normalize_positions(position, num_fields)
+        normalized_positions = tuple(
+            cls.normalize_positions(position, num_fields))
         one_hot_cards = np.array([cls.one_hot_encode_cards(
             cards, unique_cards) for cards in cards_on_hand])
         return cls(normalized_positions, one_hot_cards)
@@ -74,7 +76,7 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
     def is_terminal(self, state: TacState) -> bool:
         step = self.num_fields // len(state.position)
         for p in range(len(state.position)):
-            if np.round(state.position[p] * self.num_fields) % self.num_fields == (step * p - 1) % self.num_fields:
+            if round(state.position[p] * self.num_fields) % self.num_fields == (step * p - 1) % self.num_fields:
                 return True
         return False
 
@@ -89,7 +91,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
             -> Tuple[TacState, float]:
 
         # Convert continuous positions to integer positions
-        int_positions = (state.position * self.num_fields).astype(int)
+        int_positions = (np.array(state.position) *
+                         self.num_fields).astype(int)
 
         positions = int_positions.copy()
 
@@ -125,8 +128,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 
 # Define the feature function for your TacState
 def tac_state_feature_function(state: TacState) -> np.ndarray:
-    features = np.concatenate((state.position, state.cards_on_hand.flatten()))
-    return features
+    return np.hstack(
+        (np.array(state.position), state.cards_on_hand.flatten()))
 
 
 if __name__ == '__main__':
@@ -135,8 +138,6 @@ if __name__ == '__main__':
     initial_state = game.get_initial_state()
 
     # Step 2: Create an instance of LinearFunctionApprox
-    input_size = len(tac_state_feature_function(
-        TacState(np.array([0, 0]), np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]))))
     q_approximator = LinearFunctionApprox.create([tac_state_feature_function])
 
     # Set some necessary parameters
@@ -155,8 +156,8 @@ if __name__ == '__main__':
             # Choose an action based on the current Q-function approximator
             # Get the available actions for the current state
             available_actions = game.get_available_actions(state)
-            q_values = [q_approximator.evaluate(tac_state_feature_function(state))[
-                0] for action in available_actions]
+            q_values = q_approximator.evaluate([state])
+
             # Next action is epsilon-greedy
             if np.random.random() < epsilon:
                 action = random.choice(available_actions)
@@ -171,17 +172,18 @@ if __name__ == '__main__':
             if game.is_terminal(next_state):
                 target_q_value = reward
             else:
-                next_q_values = [q_approximator.evaluate(tac_state_feature_function(next_state))[
-                    0] for action in available_actions]
+                next_q_values = [q_approximator.evaluate(
+                    next_state)[0] for action in available_actions]
+
                 target_q_value = reward + gamma * np.max(next_q_values)
 
             # Compute the current Q-value for the (state, action) pair
-            current_q_value = q_approximator.evaluate(
-                tac_state_feature_function(state))[0]
+            current_q_value = q_approximator.evaluate(state)[0]
 
             # Update the Q-function approximator using the observed difference between the target and current Q-values
-            q_approximator = q_approximator.update(
-                [(tac_state_feature_function(state), target_q_value - current_q_value)], alpha)
+            td_error = target_q_value - current_q_value
+            gradient = q_approximator.gradient([(state, td_error)])
+            q_approximator = q_approximator.update_with_gradient(gradient)
 
             # Move on to the next state
             state = next_state
