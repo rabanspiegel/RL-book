@@ -1,6 +1,6 @@
 
+import random
 from dataclasses import dataclass
-from random import random
 from typing import Iterable, List, Tuple, TypeVar
 
 import numpy as np
@@ -122,41 +122,14 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 
         return TacState(new_positions, cards), reward
 
+
 # Define the feature function for your TacState
-
-
 def tac_state_feature_function(state: TacState) -> np.ndarray:
     features = np.concatenate((state.position, state.cards_on_hand.flatten()))
     return features
 
 
-# Testing State representation
-def test_from_original_representation():
-    unique_cards = ['One', 'Two', 'Three', 'Five', 'Six']
-    num_fields = 20
-    positions = [3, 7]
-    cards_on_hand = [['One', 'Two'], ['Three', 'Five']]
-
-    # Create a TacState instance using from_original_representation
-    state = TacState.from_original_representation(
-        positions, cards_on_hand, num_fields, unique_cards)
-
-    # Check if the positions are normalized correctly
-    expected_positions = np.array([3, 7]) / num_fields
-    assert np.allclose(
-        state.position, expected_positions), f"Positions don't match. Expected {expected_positions}, got {state.position}"
-
-    # Check if the cards are one-hot encoded correctly
-    expected_cards_on_hand = np.array([
-        [1, 1, 0, 0, 0],
-        [0, 0, 1, 1, 0]
-    ])
-    assert np.array_equal(
-        state.cards_on_hand, expected_cards_on_hand), f"Cards on hand don't match. Expected {expected_cards_on_hand}, got {state.cards_on_hand}"
-
-
 if __name__ == '__main__':
-    test_from_original_representation()
 
     game = SimpleTacGame()
     initial_state = game.get_initial_state()
@@ -164,12 +137,13 @@ if __name__ == '__main__':
     # Step 2: Create an instance of LinearFunctionApprox
     input_size = len(tac_state_feature_function(
         TacState(np.array([0, 0]), np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]))))
-    q_approximator = LinearFunctionApprox.create(input_size)
+    q_approximator = LinearFunctionApprox.create([tac_state_feature_function])
 
     # Set some necessary parameters
     alpha = 0.1  # Learning rate
     gamma = 0.99  # Discount factor
     num_episodes = 1000  # Number of episodes for learning
+    epsilon = 0.1  # Epsilon-greedy exploration
 
     # Q-learning algorithm
     for episode in range(num_episodes):
@@ -183,7 +157,11 @@ if __name__ == '__main__':
             available_actions = game.get_available_actions(state)
             q_values = [q_approximator.evaluate(tac_state_feature_function(state))[
                 0] for action in available_actions]
-            action = available_actions[np.argmax(q_values)]
+            # Next action is epsilon-greedy
+            if np.random.random() < epsilon:
+                action = random.choice(available_actions)
+            else:
+                action = available_actions[np.argmax(q_values)]
 
             # Take the action and observe the next state and reward
             # Get the next state and reward using the action

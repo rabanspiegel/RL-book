@@ -2,20 +2,24 @@ import itertools
 import random
 from dataclasses import dataclass
 from itertools import combinations, permutations
-from typing import Dict, List, Mapping, Sequence, Tuple, Iterable
+from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
 from rl.distribution import Categorical
 from rl.dynamic_programming import value_iteration_result
 from rl.markov_decision_process import FiniteMarkovDecisionProcess
 from rl.markov_process import FiniteMarkovProcess, FiniteMarkovRewardProcess
 
-CardAction = int
+
+class CardAction:
+    def __init__(self, card: str):
+        self.card = card
 
 
 @dataclass(frozen=True)
 class TacState:
     position: List[int]  # positions of player 1 and player 2
-    cards_on_hand: Iterable[List[str]]  # cards on hand of player 1 and player 2
+    # cards on hand of player 1 and player 2
+    cards_on_hand: Iterable[List[str]]
 
     def __hash__(self):
         return hash((tuple(self.position), tuple(map(tuple, self.cards_on_hand))))
@@ -52,13 +56,15 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
         # simulate action of player 0
         played_card = action
         if played_card in self.card_effects:
-            positions[0] = (positions[0] + self.card_effects[played_card]) % self.fields
+            positions[0] = (
+                positions[0] + self.card_effects[played_card]) % self.fields
 
         # simulate actions of other players by random moves
         for p in range(1, self.players):
-            positions[p] = (positions[p] + self.card_effects[random.choice(list(self.card_effects.keys()))]) % self.fields
+            positions[p] = (
+                positions[p] + self.card_effects[random.choice(list(self.card_effects.keys()))]) % self.fields
 
-        cards = state.cards_on_hand.copy() # attention not deep copy
+        cards = state.cards_on_hand.copy()  # attention not deep copy
 
         def game_lost() -> bool:
             step = self.fields // self.players
@@ -67,7 +73,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
                     return True
             return False
 
-        reward = 1 if positions[0] == self.fields - 1 else -1 if game_lost() else 0
+        reward = 1 if positions[0] == self.fields - \
+            1 else -1 if game_lost() else 0
 
         return TacState(positions, cards), reward
 
@@ -75,13 +82,15 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
             -> Mapping[TacState, Mapping[CardAction, Categorical[Tuple[TacState, float]]]]:
         states = self.get_all_possible_states()
 
-        transition_map: Dict[TacState, Dict[CardAction, Categorical[Tuple[TacState, float]]]] = {}
+        transition_map: Dict[TacState, Dict[CardAction,
+                                            Categorical[Tuple[TacState, float]]]] = {}
         for state in states:
             action_map = {}
             actions = self.get_possible_actions_for_state(state)
             for action in actions:
                 new_state, reward = self.get_next_state_reward(state, action)
-                dist: Dict[Tuple[TacState, float], float] = {(new_state, reward): 1}
+                dist: Dict[Tuple[TacState, float], float] = {
+                    (new_state, reward): 1}
                 action_map[action] = Categorical(dist)
 
             transition_map[state] = action_map
@@ -94,7 +103,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
                 for cards in self.get_all_possible_cards_combinations()]
 
     def get_all_possible_cards_combinations(self) -> Iterable[Iterable[Iterable[str]]]:
-        card_list = [val for val, count in self.cards.items() for _ in range(count)]
+        card_list = [val for val, count in self.cards.items()
+                     for _ in range(count)]
         cards_per_player = len(card_list) // self.players
 
         def append_cards(round: Iterable[Iterable[str]], remaining_cards: list[str]) \
@@ -104,7 +114,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 
             # calculate all possible hands of new player
             new_player_hands = sorted(
-                list(set([tuple(sorted(tup)) for tup in permutations(remaining_cards, cards_per_player)])),
+                list(set([tuple(sorted(tup)) for tup in permutations(
+                    remaining_cards, cards_per_player)])),
                 key=lambda x: x)
 
             # calculate leftover cards
