@@ -1,5 +1,7 @@
+
 from dataclasses import dataclass
-from typing import Iterable, List, TypeVar
+from random import random
+from typing import Iterable, List, Tuple, TypeVar
 
 import numpy as np
 from tac import TacState
@@ -51,7 +53,50 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
     state = TacState.from_original_representation(
         positions, cards_on_hand, num_fields, unique_cards)
 
+    def get_next_state_reward(self, state: TacState, action: CardAction) \
+            -> Tuple[TacState, float]:
 
+        # Convert continuous positions to integer positions
+        int_positions = (state.position * self.fields).astype(int)
+
+        positions = int_positions.copy()
+
+        # simulate action of player 0
+        played_card = action
+        if played_card in self.card_effects:
+            positions[0] = (
+                positions[0] + self.card_effects[played_card]) % self.fields
+
+        # simulate actions of other players by random moves
+        for p in range(1, self.players):
+            positions[p] = (
+                positions[p] + self.card_effects[random.choice(list(self.card_effects.keys()))]) % self.fields
+
+        cards = state.cards_on_hand.copy()  # attention not deep copy
+
+        def game_lost() -> bool:
+            step = self.fields // self.players
+            for p in range(1, self.players):
+                if positions[p] == (step * p - 1) % self.fields:
+                    return True
+            return False
+
+        reward = 1 if positions[0] == self.fields - \
+            1 else -1 if game_lost() else 0
+
+        # Convert the updated integer positions back to continuous positions
+        new_positions = TacState.normalize_positions(positions, self.fields)
+
+        return TacState(new_positions, cards), reward
+
+    def tac_state_feature_function(state: TacState) -> np.ndarray:
+        # Concatenate the position and one-hot encoded cards information
+        features = np.concatenate(
+            (state.position, state.cards_on_hand.flatten()))
+        return features
+
+
+# Testing State representation
 def test_from_original_representation():
     unique_cards = ['One', 'Two', 'Three', 'Five', 'Six']
     num_fields = 20
@@ -78,4 +123,3 @@ def test_from_original_representation():
 
 if __name__ == '__main__':
     test_from_original_representation()
-    print("All tests passed.")
