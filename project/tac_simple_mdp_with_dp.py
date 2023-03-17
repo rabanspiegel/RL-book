@@ -151,6 +151,5 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 
 if __name__ == '__main__':
     tac_mp = SimpleTacGame()
-
     vf, pi = value_iteration_result(tac_mp, gamma=0.99)
     print(pi)
