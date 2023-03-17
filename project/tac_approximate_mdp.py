@@ -1,13 +1,13 @@
 
 import random
 from dataclasses import dataclass
-from typing import Iterable, List, Tuple, TypeVar
+from typing import Iterable, List, Tuple, TypeVar, Sequence, Callable
 
 import numpy as np
 from tac import TacState
 
 from project.tac_simple_mdp_with_dp import CardAction
-from rl.function_approx import LinearFunctionApprox
+from rl.function_approx import LinearFunctionApprox, Weights
 from rl.markov_decision_process import (FiniteMarkovDecisionProcess,
                                         MarkovDecisionProcess)
 from rl.markov_process import NonTerminal
@@ -103,15 +103,15 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
                 positions[0] + self.card_effects[played_card]) % self.num_fields
 
         # simulate actions of other players by random moves
-        for p in range(1, self.players):
+        for p in range(1, self.num_players):
             positions[p] = (
                 positions[p] + self.card_effects[random.choice(list(self.card_effects.keys()))]) % self.num_fields
 
         cards = state.cards_on_hand.copy()  # attention not deep copy
 
         def game_lost() -> bool:
-            step = self.num_fields // self.players
-            for p in range(1, self.players):
+            step = self.num_fields // self.num_players
+            for p in range(1, self.num_players):
                 if positions[p] == (step * p - 1) % self.num_fields:
                     return True
             return False
@@ -127,9 +127,10 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 
 
 # Define the feature function for your TacState
-def tac_state_feature_function(state: TacState) -> np.ndarray:
-    return np.hstack(
-        (np.array(state.position), state.cards_on_hand.flatten()))
+
+def feature_functions(state: TacState) -> Sequence[Callable[[TacState], float]]:
+    state_arr = np.hstack((np.array(state.position), state.cards_on_hand.flatten()))
+    return [lambda s: state_arr[i] for i in range(len(state_arr))]
 
 
 if __name__ == '__main__':
@@ -138,7 +139,7 @@ if __name__ == '__main__':
     initial_state = game.get_initial_state()
 
     # Step 2: Create an instance of LinearFunctionApprox
-    q_approximator = LinearFunctionApprox.create([tac_state_feature_function])
+    q_approximator = LinearFunctionApprox.create(feature_functions(initial_state), weights=Weights.create(np.zeros(12)))
 
     # Set some necessary parameters
     alpha = 0.1  # Learning rate
@@ -149,7 +150,7 @@ if __name__ == '__main__':
     # Q-learning algorithm
     for episode in range(num_episodes):
         # Initialize the state
-        state = initial_state
+        state = initial_state  # TODO: mix cards
 
         # You need to define a function to check if a state is terminal
         while not game.is_terminal(state):
@@ -172,17 +173,15 @@ if __name__ == '__main__':
             if game.is_terminal(next_state):
                 target_q_value = reward
             else:
-                next_q_values = [q_approximator.evaluate(
-                    next_state)[0] for action in available_actions]
-
+                next_q_values = [q_approximator.evaluate([next_state])[0] for action in available_actions]
                 target_q_value = reward + gamma * np.max(next_q_values)
 
             # Compute the current Q-value for the (state, action) pair
-            current_q_value = q_approximator.evaluate(state)[0]
+            current_q_value = q_approximator.evaluate([state])[0]
 
             # Update the Q-function approximator using the observed difference between the target and current Q-values
             td_error = target_q_value - current_q_value
-            gradient = q_approximator.gradient([(state, td_error)])
+            gradient = q_approximator.objective_gradient([(state, td_error)])
             q_approximator = q_approximator.update_with_gradient(gradient)
 
             # Move on to the next state
