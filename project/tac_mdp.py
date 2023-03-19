@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TypeVar, Tuple, List, Sequence
+from typing import List, Sequence, Tuple, TypeVar
 
 import numpy as np
 
-from rl.distribution import Choose, Categorical, Distribution
+from rl.distribution import Categorical, Choose, Distribution
 from rl.function_approx import LinearFunctionApprox, Weights
 from rl.markov_decision_process import MarkovDecisionProcess, TransitionStep
-from rl.markov_process import Terminal, NonTerminal, State
+from rl.markov_process import NonTerminal, State, Terminal
 from rl.monte_carlo import epsilon_greedy_policy
 from rl.policy import UniformPolicy
 from rl.td import q_learning
@@ -60,7 +60,6 @@ class SimpleTacGame(TacGame):
     num_fields = 20
     num_players = 2
     num_marbles = 1
-
 
 
 @dataclass(frozen=True)
@@ -117,7 +116,8 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
         cards = []
         for p in range(self.game.num_players):
             cards.append(TacState.one_hot_encode_cards(
-                np.random.choice(self.game.unique_cards, self.game.cards_per_player, replace=False),
+                np.random.choice(self.game.unique_cards,
+                                 self.game.cards_per_player, replace=False),
                 self.game.unique_cards
             ))
         return cards
@@ -125,8 +125,10 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
     def step(self, state: NonTerminal[TacState], action: A) -> Distribution[Tuple[State[TacState], float]]:
         state = state.state
         # move marble
-        next_position = TacState.denormalize_positions(state.position, self.game.num_fields)
-        next_position[0] = (next_position[0] + self.game.card_effects[action]) % self.game.num_fields
+        next_position = TacState.denormalize_positions(
+            state.position, self.game.num_fields)
+        next_position[0] = (
+            next_position[0] + self.game.card_effects[action]) % self.game.num_fields
 
         # handle collisions
         if next_position[0] in next_position[1:]:
@@ -140,7 +142,8 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
             next_position[hit_marble_index] = self.game.num_fields // self.game.num_players * hit_player_index
 
         # remove card from hand
-        next_cards_on_hand = [state.cards_on_hand[i].copy() for i in range(self.game.num_players)]
+        next_cards_on_hand = [state.cards_on_hand[i].copy()
+                              for i in range(self.game.num_players)]
         next_cards_on_hand[0][self.game.unique_cards.index(action)] -= 1
 
         # simulate moves from other players
@@ -149,10 +152,12 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
             card_distribution = Categorical(
                 {card: state.get_cards_of_player(player_index)[self.game.unique_cards.index(card)]
                  for card in self.game.unique_cards})
-            card = card_distribution.sample()  # TODO: fix random and only allow for possible cards
+            # TODO: fix random and only allow for possible cards
+            card = card_distribution.sample()
 
             # move marble
-            next_position[player_index] = (next_position[player_index] + self.game.card_effects[card]) % self.game.num_fields
+            next_position[player_index] = (
+                next_position[player_index] + self.game.card_effects[card]) % self.game.num_fields
 
             # handle collisions
             if next_position[player_index] in next_position[:player_index] + next_position[player_index + 1:]:
@@ -167,14 +172,16 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
                 next_position[hit_marble_index] = self.game.num_fields // self.game.num_players * hit_player_index
 
             # remove card from hand
-            next_cards_on_hand[player_index][self.game.unique_cards.index(card)] -= 1
+            next_cards_on_hand[player_index][self.game.unique_cards.index(
+                card)] -= 1
 
         # shuffle cards on hand if empty
         if np.sum(next_cards_on_hand) == 0:
             next_cards_on_hand = self.mix_cards()
 
         # calculate next state
-        next_state = TacState(TacState.normalize_positions(next_position, self.game.num_fields), next_cards_on_hand)
+        next_state = TacState(TacState.normalize_positions(
+            next_position, self.game.num_fields), next_cards_on_hand)
 
         # check if game is over
         if self.game_lost(next_position):
@@ -191,7 +198,7 @@ class TacMdp(MarkovDecisionProcess[TacState, A]):
         # for later: only allow actions that are possible (e.g. no black card if no marble on field)
         # for later: expand for multiple marbles
         # for later: expand for different effect of cards (e.g. Trickster, 7)
-        cards_on_hand = state.cards_on_hand
+        cards_on_hand = state.state.cards_on_hand
         return [card for card in self.game.unique_cards if cards_on_hand[0][self.game.unique_cards.index(card)] > 0]
 
 
@@ -210,6 +217,7 @@ if __name__ == '__main__':
     print(next_state)
     '''
 
-    steps = mdp.simulate_actions(mdp.get_start_state_distribution(), UniformPolicy(mdp.actions))
+    steps = mdp.simulate_actions(
+        mdp.get_start_state_distribution(), UniformPolicy(mdp.actions))
     for step in steps:
         print(step)

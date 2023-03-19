@@ -1,7 +1,7 @@
 
 import random
 from dataclasses import dataclass
-from typing import Iterable, List, Tuple, TypeVar, Sequence, Callable
+from typing import Callable, Iterable, List, Sequence, Tuple, TypeVar
 
 import numpy as np
 from tac import TacState
@@ -129,7 +129,8 @@ class SimpleTacGame(FiniteMarkovDecisionProcess[TacState, CardAction]):
 # Define the feature function for your TacState
 
 def feature_functions(state: TacState) -> Sequence[Callable[[TacState], float]]:
-    state_arr = np.hstack((np.array(state.position), state.cards_on_hand.flatten()))
+    state_arr = np.hstack(
+        (np.array(state.position), state.cards_on_hand.flatten()))
     return [lambda s: state_arr[i] for i in range(len(state_arr))]
 
 
@@ -139,7 +140,8 @@ if __name__ == '__main__':
     initial_state = game.get_initial_state()
 
     # Step 2: Create an instance of LinearFunctionApprox
-    q_approximator = LinearFunctionApprox.create(feature_functions(initial_state), weights=Weights.create(np.zeros(12)))
+    q_approximator = LinearFunctionApprox.create(feature_functions(
+        initial_state), weights=Weights.create(np.zeros(12)))
 
     # Set some necessary parameters
     alpha = 0.1  # Learning rate
@@ -173,7 +175,8 @@ if __name__ == '__main__':
             if game.is_terminal(next_state):
                 target_q_value = reward
             else:
-                next_q_values = [q_approximator.evaluate([next_state])[0] for action in available_actions]
+                next_q_values = [q_approximator.evaluate(
+                    [next_state])[0] for action in available_actions]
                 target_q_value = reward + gamma * np.max(next_q_values)
 
             # Compute the current Q-value for the (state, action) pair
