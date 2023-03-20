@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Callable, Iterable, List, Sequence, Tuple, TypeVar
 
 import numpy as np
-from tac import TacState
 
 from project.tac_simple_mdp_with_dp import CardAction
 from rl.function_approx import LinearFunctionApprox, Weights
@@ -13,6 +12,10 @@ from rl.markov_decision_process import (FiniteMarkovDecisionProcess,
 from rl.markov_process import NonTerminal
 
 A = TypeVar('A')
+
+'''
+this was out first attempt to implement the Q-learning algorithm
+'''
 
 
 @dataclass(frozen=True)
