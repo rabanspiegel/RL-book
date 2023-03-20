@@ -1,8 +1,8 @@
 import itertools
 
 import numpy as np
+from tac_mdp import SimpleTacGame, TacMdp
 
-from project.tac_mdp import TacMdp, SimpleTacGame
 from rl.distribution import Choose
 from rl.function_approx import LinearFunctionApprox, Weights
 from rl.monte_carlo import epsilon_greedy_policy
@@ -16,12 +16,11 @@ if __name__ == '__main__':
     gamma: float = 0.9
     max_episode_length: int = 100
     approx_0: LinearFunctionApprox = LinearFunctionApprox.create(
-        weights=Weights.create(np.zeros(tac_mdp.game.num_players * tac_mdp.game.num_marbles+
+        weights=Weights.create(np.zeros(tac_mdp.game.num_players * tac_mdp.game.num_marbles +
                                         tac_mdp.game.num_players * len(tac_mdp.game.unique_cards))),
-        feature_functions=
-        [lambda s: s.position[i] for i in
-         range(tac_mdp.game.num_players * tac_mdp.game.num_marbles)] +  # position features
-        [lambda s: s.cards_on_hand[i][j] for i in range(tac_mdp.game.num_players)
+        feature_functions=[lambda s: s[0].state.position[i] for i in
+                           range(tac_mdp.game.num_players * tac_mdp.game.num_marbles)] +  # position features
+        [lambda s: s[0].state.cards_on_hand[i][j] for i in range(tac_mdp.game.num_players)
          for j in range(len(tac_mdp.game.unique_cards))]  # cards features
     )
 
